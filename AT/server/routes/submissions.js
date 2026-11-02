@@ -159,7 +159,7 @@ router.post('/admin/login', (req, res) => {
 
   const adminEmail = String(process.env.ADMIN_EMAIL || 'contact@arghyatrust.org').trim().toLowerCase();
   const adminUsername = String(process.env.ADMIN_USERNAME || 'arghya_admin').trim().toLowerCase();
-  const adminPassword = String(process.env.ADMIN_PASSWORD || 'Arghya@Trust#2026$Admin');
+  const adminPassword = String(process.env.ADMIN_PASSWORD || 'ArghyaTrust@2026#Admin');
   const adminName = process.env.ADMIN_NAME || 'Arghya Trust Administrator';
 
   const matchesIdentifier = loginId === adminEmail || loginId === adminUsername;

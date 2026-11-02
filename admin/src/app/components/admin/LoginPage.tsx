@@ -43,7 +43,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 <Input
                   id="loginId"
                   type="text"
-                  placeholder="admin@arghyatrust.org or admin"
+                  placeholder="contact@arghyatrust.org or arghya_admin"
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
                   autoComplete="username"

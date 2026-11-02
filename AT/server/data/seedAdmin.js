@@ -14,13 +14,18 @@ export async function ensureDefaultAdmin() {
   const username = String(process.env.ADMIN_USERNAME || inferUsernameFromEmail(email) || 'arghya_admin')
     .trim()
     .toLowerCase();
-  const password = String(process.env.ADMIN_PASSWORD || 'Arghya@Trust#2026$Admin');
+  const password = String(process.env.ADMIN_PASSWORD || 'ArghyaTrust@2026#Admin');
   const name = String(process.env.ADMIN_NAME || 'Arghya Trust Administrator').trim();
 
   if (!email || !password) return;
 
+  // Remove legacy demo credentials from database
+  await Admin.deleteMany({
+    $or: [{ email: 'admin@arghyatrust.org' }, { username: 'admin' }],
+  });
+
   const existingAdmin = await Admin.findOne({
-    $or: [{ email }, { username }, { email: 'admin@arghyatrust.org' }, { username: 'admin' }],
+    $or: [{ email }, { username }],
   });
 
   if (existingAdmin) {
