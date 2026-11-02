@@ -8,6 +8,12 @@ import adminRoutes from './routes/adminRoutes.js';
 import { connectMongo } from './db/connectMongo.js';
 import { seedDefaults } from './data/seedDefaults.js';
 import { ensureDefaultAdmin } from './data/seedAdmin.js';
+import {
+  resolveRouteSeo,
+  injectSeoIntoHtml,
+  generateSitemapXml,
+  CANONICAL_DOMAIN,
+} from './seo/seoMetadata.js';
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
@@ -31,6 +37,16 @@ function isAllowedOrigin(origin) {
   return false;
 }
 
+// Canonical host normalization (redirect www to non-www in production)
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  if (isProduction && host.startsWith('www.')) {
+    const cleanHost = host.replace(/^www\./, '');
+    return res.redirect(301, `https://${cleanHost}${req.originalUrl}`);
+  }
+  return next();
+});
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
@@ -51,10 +67,58 @@ app.use((req, res, next) => {
   return next();
 });
 app.use(express.json({ limit: '1mb' }));
-if (!isProduction) {
-  app.use('/assets', express.static(path.join(__dirname, '../src/assets')));
+// Assets fallback static serving
+const assetDirs = [
+  path.join(__dirname, '../src/assets'),
+  path.join(__dirname, '../../src/assets'),
+];
+for (const ad of assetDirs) {
+  try {
+    if (fs.existsSync(ad)) {
+      app.use('/assets', express.static(ad, { maxAge: '7d', fallthrough: true }));
+    }
+  } catch {
+    // safe fallback
+  }
 }
-app.use('/uploads', express.static(path.join(__dirname, './uploads')));
+
+if (!isProduction) {
+  app.get('/', (_req, res) => {
+    return res.redirect('http://localhost:5173');
+  });
+  app.get('/admin', (_req, res) => {
+    return res.redirect('http://localhost:5174');
+  });
+}
+
+// Persistent uploads serving with multi-tier directory fallbacks
+const primaryUploads = process.env.UPLOADS_PATH
+  ? (path.isAbsolute(process.env.UPLOADS_PATH) ? process.env.UPLOADS_PATH : path.resolve(process.cwd(), process.env.UPLOADS_PATH))
+  : path.join(__dirname, './uploads');
+
+const fallbackUploadDirs = [
+  primaryUploads,
+  path.resolve(__dirname, './uploads'),
+  path.resolve(__dirname, '../../server/uploads'),
+  path.resolve(__dirname, '../server/uploads'),
+  '/www/wwwroot/arghyatrust.org/server/uploads',
+  '/www/wwwroot/arghyatrust.org/AT/server/uploads',
+  '/www/wwwroot/arghyatrust.org/uploads',
+];
+
+const uniqueUploadDirs = [...new Set(fallbackUploadDirs)];
+for (const dir of uniqueUploadDirs) {
+  try {
+    if (fs.existsSync(dir)) {
+      app.use('/uploads', express.static(dir, {
+        maxAge: '7d',
+        fallthrough: true,
+      }));
+    }
+  } catch {
+    // safe fallback
+  }
+}
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
@@ -71,9 +135,81 @@ app.use('/api', (req, res, next) => {
 app.use('/api', publicRoutes);
 app.use('/api', adminRoutes);
 
+// SEO Infrastructure Endpoints
+app.get('/robots.txt', (_req, res) => {
+  const robotsPath = path.resolve(__dirname, '../public/robots.txt');
+  if (fs.existsSync(robotsPath)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(robotsPath);
+  }
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  return res.send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nSitemap: ${CANONICAL_DOMAIN}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', async (_req, res) => {
+  try {
+    const xml = await generateSitemapXml();
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.status(200).send(xml);
+  } catch (err) {
+    console.error('Failed to generate dynamic sitemap:', err);
+    const staticSitemap = path.resolve(__dirname, '../public/sitemap.xml');
+    if (fs.existsSync(staticSitemap)) {
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      return res.sendFile(staticSitemap);
+    }
+    return res.status(500).send('Error generating sitemap');
+  }
+});
+
+app.get('/sitemap-pages.xml', (_req, res) => {
+  const filePath = path.resolve(__dirname, '../public/sitemap-pages.xml');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.sendFile(filePath);
+  }
+  return res.redirect(301, '/sitemap.xml');
+});
+
+app.get('/sitemap-blogs.xml', async (_req, res) => {
+  const filePath = path.resolve(__dirname, '../public/sitemap-blogs.xml');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.sendFile(filePath);
+  }
+  return res.redirect(301, '/sitemap.xml');
+});
+
+app.get('/sitemap-events.xml', (_req, res) => {
+  const filePath = path.resolve(__dirname, '../public/sitemap-events.xml');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.sendFile(filePath);
+  }
+  return res.redirect(301, '/sitemap.xml');
+});
+
+app.get('/llms.txt', (_req, res) => {
+  const llmsPath = path.resolve(__dirname, '../public/llms.txt');
+  if (fs.existsSync(llmsPath)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(llmsPath);
+  }
+  return res.status(404).send('Not Found');
+});
+
 function resolveDir(value, fallbackPath) {
   if (!value) return fallbackPath;
   return path.isAbsolute(value) ? value : path.resolve(process.cwd(), value);
+}
+
+if (!isProduction) {
+  app.get('/', (_req, res) => {
+    res.redirect('http://localhost:5173');
+  });
 }
 
 if (isProduction) {
@@ -92,12 +228,36 @@ if (isProduction) {
   }
 
   if (fs.existsSync(publicIndex)) {
-    app.use(express.static(publicDist));
-    app.get('/{*route}', (req, res, next) => {
+    app.use(
+      express.static(publicDist, {
+        maxAge: '1y',
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          }
+        },
+      })
+    );
+
+    app.get('/{*route}', async (req, res, next) => {
       if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/admin')) {
         return next();
       }
-      return res.sendFile(publicIndex);
+
+      try {
+        const seo = await resolveRouteSeo(req.path);
+        let html = fs.readFileSync(publicIndex, 'utf-8');
+        html = injectSeoIntoHtml(html, seo);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        if (seo.canonical) {
+          res.setHeader('Link', `<${seo.canonical}>; rel="canonical"`);
+        }
+        return res.status(seo.statusCode || 200).send(html);
+      } catch (err) {
+        console.error('Error serving SEO-injected HTML:', err);
+        return res.sendFile(publicIndex);
+      }
     });
   } else {
     console.warn(`Public build not found at ${publicDist}`);
@@ -129,16 +289,21 @@ async function connectMongoWithRetry() {
   while (!dbReady) {
     try {
       await connectMongo();
-      await seedDefaults();
-      await ensureDefaultAdmin();
       dbReady = true;
       dbLastError = null;
-      console.log('MongoDB connected and default content/admin seeded.');
+      console.log('MongoDB connected successfully.');
+      try {
+        await seedDefaults();
+        await ensureDefaultAdmin();
+        console.log('Default content & admin verified.');
+      } catch (seedErr) {
+        console.warn('Seeding note (non-fatal):', seedErr?.message || seedErr);
+      }
       return;
     } catch (err) {
       dbReady = false;
       dbLastError = err;
-      console.error('MongoDB connection failed. Retrying in 15 seconds...');
+      console.error('MongoDB connection failed. Retrying in 15 seconds...', err?.message || err);
       await wait(15000);
     }
   }

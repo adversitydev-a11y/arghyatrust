@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import { Admin } from '../models/Admin.js';
 import { ContactMessage } from '../models/ContactMessage.js';
@@ -7,6 +10,28 @@ import { Event } from '../models/Event.js';
 import { GalleryImage } from '../models/GalleryImage.js';
 import { BlogSubmission } from '../models/BlogSubmission.js';
 import { signAdminToken } from '../middleware/auth.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function syncUploadFile(subfolder, filename) {
+  if (!filename) return;
+  try {
+    const atPath = path.resolve(__dirname, '../uploads', subfolder, filename);
+    const rootPath = path.resolve(__dirname, '../../server/uploads', subfolder, filename);
+    if (fs.existsSync(atPath) && !fs.existsSync(rootPath)) {
+      const dir = path.dirname(rootPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(atPath, rootPath);
+    } else if (fs.existsSync(rootPath) && !fs.existsSync(atPath)) {
+      const dir = path.dirname(atPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(rootPath, atPath);
+    }
+  } catch {
+    // safe silent fallback
+  }
+}
 
 const FALLBACK_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -386,6 +411,25 @@ export async function getAdminEvents(_req, res, next) {
   }
 }
 
+export async function uploadAdminEventImage(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please choose an image file to upload.' });
+    }
+    syncUploadFile('events', req.file.filename);
+    const imageUrl = `/uploads/events/${req.file.filename}`;
+    return res.status(200).json({
+      ok: true,
+      imageUrl,
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function createAdminEvent(req, res, next) {
   try {
     const payload = req.body || {};
@@ -394,13 +438,15 @@ export async function createAdminEvent(req, res, next) {
       return res.status(400).json({ error: 'title, description, date and category are required' });
     }
 
+    const imageUrl = req.file ? `/uploads/events/${req.file.filename}` : payload.imageUrl;
+
     const doc = await Event.create({
       title,
       description,
       date,
       category,
       status: payload.status === 'Completed' ? 'Completed' : 'Upcoming',
-      imageUrl: payload.imageUrl,
+      imageUrl,
       location: payload.location,
       participants: Number.isFinite(Number(payload.participants))
         ? Number(payload.participants)
@@ -408,6 +454,7 @@ export async function createAdminEvent(req, res, next) {
       registrationLink: payload.registrationLink,
       brochureUrl: payload.brochureUrl,
       featured: Boolean(payload.featured),
+      isVisible: payload.isVisible !== undefined ? Boolean(payload.isVisible) : true,
       sortOrder: Number.isFinite(Number(payload.sortOrder)) ? Number(payload.sortOrder) : 0,
     });
     return res.status(201).json({ ok: true, data: doc });
@@ -427,29 +474,60 @@ export async function updateAdminEvent(req, res, next) {
       return res.status(400).json({ error: 'title, description, date and category are required' });
     }
 
+    const imageUrl = req.file ? `/uploads/events/${req.file.filename}` : payload.imageUrl;
+
+    const updateFields = {
+      title,
+      description,
+      date,
+      category,
+      status: payload.status === 'Completed' ? 'Completed' : 'Upcoming',
+      location: payload.location,
+      participants: Number.isFinite(Number(payload.participants))
+        ? Number(payload.participants)
+        : undefined,
+      registrationLink: payload.registrationLink,
+      brochureUrl: payload.brochureUrl,
+      featured: Boolean(payload.featured),
+      sortOrder: Number.isFinite(Number(payload.sortOrder)) ? Number(payload.sortOrder) : 0,
+    };
+
+    if (imageUrl !== undefined) {
+      updateFields.imageUrl = imageUrl;
+    }
+
+    if (payload.isVisible !== undefined) {
+      updateFields.isVisible = Boolean(payload.isVisible);
+    }
+
     const doc = await Event.findByIdAndUpdate(
       id,
-      {
-        title,
-        description,
-        date,
-        category,
-        status: payload.status === 'Completed' ? 'Completed' : 'Upcoming',
-        imageUrl: payload.imageUrl,
-        location: payload.location,
-        participants: Number.isFinite(Number(payload.participants))
-          ? Number(payload.participants)
-          : undefined,
-        registrationLink: payload.registrationLink,
-        brochureUrl: payload.brochureUrl,
-        featured: Boolean(payload.featured),
-        sortOrder: Number.isFinite(Number(payload.sortOrder)) ? Number(payload.sortOrder) : 0,
-      },
+      updateFields,
       { new: true, runValidators: true },
     ).lean();
 
     if (!doc) return res.status(404).json({ error: 'Event not found' });
     return res.json({ ok: true, data: doc });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function toggleAdminEventVisibility(req, res, next) {
+  try {
+    const id = parseObjectId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid event id' });
+
+    const existing = await Event.findById(id);
+    if (!existing) return res.status(404).json({ error: 'Event not found' });
+
+    const newVisibility = typeof req.body?.isVisible === 'boolean'
+      ? req.body.isVisible
+      : !existing.isVisible;
+
+    existing.isVisible = newVisibility;
+    await existing.save();
+    return res.json({ ok: true, data: existing });
   } catch (error) {
     return next(error);
   }
@@ -515,6 +593,9 @@ export async function uploadAdminGallery(req, res, next) {
       return res.status(400).json({ error: 'mainImage file is required' });
     }
 
+    syncUploadFile('gallery', mainImage.filename);
+    relatedImages.forEach((f) => syncUploadFile('gallery', f.filename));
+
     const mainImageUrl = `/uploads/gallery/${mainImage.filename}`;
     const relatedImageUrls = relatedImages.map((file) => `/uploads/gallery/${file.filename}`);
 
@@ -548,8 +629,11 @@ export async function uploadAdminGalleryUpdate(req, res, next) {
 
     let mainImageUrl = existingDoc.mainImageUrl || existingDoc.url;
     if (mainImageFile) {
+      syncUploadFile('gallery', mainImageFile.filename);
       mainImageUrl = `/uploads/gallery/${mainImageFile.filename}`;
     }
+
+    relatedImageFiles.forEach((f) => syncUploadFile('gallery', f.filename));
 
     let currentRelated = Array.isArray(existingDoc.relatedImages) ? [...existingDoc.relatedImages] : [];
     if (req.body?.existingRelatedImages !== undefined) {

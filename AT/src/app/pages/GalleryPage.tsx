@@ -21,6 +21,71 @@ function normalizeMediaUrl(url?: string) {
   return `/${url}`;
 }
 
+const STATIC_FALLBACK_ALBUMS: GalleryItem[] = [
+  {
+    id: 'static-programs',
+    title: 'Programs',
+    coverImage: normalizeMediaUrl('/uploads/gallery/1789111447003-502704774.jpg'),
+    images: [
+      normalizeMediaUrl('/uploads/gallery/1789111447003-502704774.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447005-177447464.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447012-844097431.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447024-192702266.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447025-604777390.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447039-934954795.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447073-572749007.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447090-765077203.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111447095-386470461.jpg'),
+    ],
+  },
+  {
+    id: 'static-spiritual',
+    title: 'Spiritual Events & Yagnas',
+    coverImage: normalizeMediaUrl('/uploads/gallery/1771319220670-403403049.jpg'),
+    images: [
+      normalizeMediaUrl('/uploads/gallery/1771319220670-403403049.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319220717-59013514.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319220756-65433558.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319220774-527917695.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319706119-946241520.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319706103-200177782.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319706150-625552103.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319220787-261873940.jpg'),
+    ],
+  },
+  {
+    id: 'static-community',
+    title: 'Community Outreach & Cultural Initiatives',
+    coverImage: normalizeMediaUrl('/uploads/gallery/1771319220589-45688046.jpg'),
+    images: [
+      normalizeMediaUrl('/uploads/gallery/1771319220589-45688046.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319220606-958334281.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319220639-246617765.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1771319220651-329241588.jpg'),
+    ],
+  },
+  {
+    id: 'static-newsletters',
+    title: 'Newsletters',
+    coverImage: normalizeMediaUrl('/uploads/gallery/1789111303414-549444144.jpg'),
+    images: [
+      normalizeMediaUrl('/uploads/gallery/1789111303414-549444144.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111303417-353168812.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111303423-693676401.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1789111303424-410541476.jpg'),
+    ],
+  },
+  {
+    id: 'static-awareness',
+    title: 'Awareness & Social Initiatives',
+    coverImage: normalizeMediaUrl('/uploads/gallery/1790710205341-298439027.jpg'),
+    images: [
+      normalizeMediaUrl('/uploads/gallery/1790710205341-298439027.jpg'),
+      normalizeMediaUrl('/uploads/gallery/1788949999343-226915152.png'),
+    ],
+  },
+];
+
 function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void }) {
   const photoCount = item.images?.length || 1;
   return (
@@ -35,6 +100,12 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           alt={item.title}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            if (item.images?.[1]) {
+              e.currentTarget.src = item.images[1];
+            }
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
           <span className="text-white text-xs font-semibold">View Album →</span>
@@ -80,7 +151,18 @@ function GallerySidebar({
                   : 'border-gray-200 bg-white hover:border-[#4CAF50]/60'
               }`}
             >
-              <img src={gallery.coverImage} alt={gallery.title} className="h-24 w-24 rounded-xl object-cover" loading="lazy" />
+              <img
+                src={gallery.coverImage}
+                alt={gallery.title}
+                className="h-24 w-24 rounded-xl object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  if (gallery.images?.[1]) {
+                    e.currentTarget.src = gallery.images[1];
+                  }
+                }}
+              />
               <span className="line-clamp-2 text-left text-sm font-medium text-[#153A75]">{gallery.title}</span>
             </button>
           );
@@ -126,6 +208,10 @@ function GalleryPreview({
                 alt={`${gallery.title} ${idx + 1}`}
                 className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                 loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = gallery.coverImage;
+                }}
               />
             </div>
           </button>
@@ -164,7 +250,7 @@ export function GalleryPage() {
   }, []);
 
   const galleries = useMemo<GalleryItem[]>(() => {
-    return galleryPrograms
+    const list = galleryPrograms
       .map((item) => {
         const coverImage = normalizeMediaUrl(item.mainImageUrl || item.url);
         const related = (item.relatedImages || []).map((img) => normalizeMediaUrl(img)).filter(Boolean);
@@ -177,6 +263,8 @@ export function GalleryPage() {
         };
       })
       .filter((item) => item.coverImage);
+
+    return list.length > 0 ? list : STATIC_FALLBACK_ALBUMS;
   }, [galleryPrograms]);
 
   const pageBackgroundStyle = {

@@ -67,8 +67,22 @@ app.use((req, res, next) => {
   return next();
 });
 app.use(express.json({ limit: '1mb' }));
+// Assets fallback static serving
+const assetDirs = [
+  path.join(__dirname, '../src/assets'),
+  path.join(__dirname, '../../src/assets'),
+];
+for (const ad of assetDirs) {
+  try {
+    if (fs.existsSync(ad)) {
+      app.use('/assets', express.static(ad, { maxAge: '7d', fallthrough: true }));
+    }
+  } catch {
+    // safe fallback
+  }
+}
+
 if (!isProduction) {
-  app.use('/assets', express.static(path.join(__dirname, '../src/assets')));
   app.get('/', (_req, res) => {
     return res.redirect('http://localhost:5173');
   });
@@ -76,7 +90,35 @@ if (!isProduction) {
     return res.redirect('http://localhost:5174');
   });
 }
-app.use('/uploads', express.static(path.join(__dirname, './uploads')));
+
+// Persistent uploads serving with multi-tier directory fallbacks
+const primaryUploads = process.env.UPLOADS_PATH
+  ? (path.isAbsolute(process.env.UPLOADS_PATH) ? process.env.UPLOADS_PATH : path.resolve(process.cwd(), process.env.UPLOADS_PATH))
+  : path.join(__dirname, './uploads');
+
+const fallbackUploadDirs = [
+  primaryUploads,
+  path.resolve(__dirname, './uploads'),
+  path.resolve(__dirname, '../../server/uploads'),
+  path.resolve(__dirname, '../server/uploads'),
+  '/www/wwwroot/arghyatrust.org/server/uploads',
+  '/www/wwwroot/arghyatrust.org/AT/server/uploads',
+  '/www/wwwroot/arghyatrust.org/uploads',
+];
+
+const uniqueUploadDirs = [...new Set(fallbackUploadDirs)];
+for (const dir of uniqueUploadDirs) {
+  try {
+    if (fs.existsSync(dir)) {
+      app.use('/uploads', express.static(dir, {
+        maxAge: '7d',
+        fallthrough: true,
+      }));
+    }
+  } catch {
+    // safe fallback
+  }
+}
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,

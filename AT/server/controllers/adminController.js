@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import { Admin } from '../models/Admin.js';
 import { ContactMessage } from '../models/ContactMessage.js';
@@ -7,6 +10,28 @@ import { Event } from '../models/Event.js';
 import { GalleryImage } from '../models/GalleryImage.js';
 import { BlogSubmission } from '../models/BlogSubmission.js';
 import { signAdminToken } from '../middleware/auth.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function syncUploadFile(subfolder, filename) {
+  if (!filename) return;
+  try {
+    const atPath = path.resolve(__dirname, '../uploads', subfolder, filename);
+    const rootPath = path.resolve(__dirname, '../../server/uploads', subfolder, filename);
+    if (fs.existsSync(atPath) && !fs.existsSync(rootPath)) {
+      const dir = path.dirname(rootPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(atPath, rootPath);
+    } else if (fs.existsSync(rootPath) && !fs.existsSync(atPath)) {
+      const dir = path.dirname(atPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(rootPath, atPath);
+    }
+  } catch {
+    // safe silent fallback
+  }
+}
 
 const FALLBACK_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -391,6 +416,7 @@ export async function uploadAdminEventImage(req, res, next) {
     if (!req.file) {
       return res.status(400).json({ error: 'Please choose an image file to upload.' });
     }
+    syncUploadFile('events', req.file.filename);
     const imageUrl = `/uploads/events/${req.file.filename}`;
     return res.status(200).json({
       ok: true,
@@ -567,6 +593,9 @@ export async function uploadAdminGallery(req, res, next) {
       return res.status(400).json({ error: 'mainImage file is required' });
     }
 
+    syncUploadFile('gallery', mainImage.filename);
+    relatedImages.forEach((f) => syncUploadFile('gallery', f.filename));
+
     const mainImageUrl = `/uploads/gallery/${mainImage.filename}`;
     const relatedImageUrls = relatedImages.map((file) => `/uploads/gallery/${file.filename}`);
 
@@ -600,8 +629,11 @@ export async function uploadAdminGalleryUpdate(req, res, next) {
 
     let mainImageUrl = existingDoc.mainImageUrl || existingDoc.url;
     if (mainImageFile) {
+      syncUploadFile('gallery', mainImageFile.filename);
       mainImageUrl = `/uploads/gallery/${mainImageFile.filename}`;
     }
+
+    relatedImageFiles.forEach((f) => syncUploadFile('gallery', f.filename));
 
     let currentRelated = Array.isArray(existingDoc.relatedImages) ? [...existingDoc.relatedImages] : [];
     if (req.body?.existingRelatedImages !== undefined) {
