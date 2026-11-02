@@ -4,7 +4,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
 import {
   Calendar,
   MapPin,
@@ -12,16 +11,13 @@ import {
   Clock,
   ExternalLink,
   ArrowRight,
-  Search,
-  X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { getPublicEvents, type PublicEvent } from '../lib/api';
+import { getPublicEvents } from '../lib/api';
 import {
   isPastEvent,
   isComingEvent,
-  type EventFilterType,
 } from '../lib/eventClassification';
 
 import durgaImg from '../../assets/devii.jpg';
@@ -192,8 +188,6 @@ export function EventsPage() {
     ...DEFAULT_UPCOMING_EVENTS,
     ...DEFAULT_PAST_EVENTS,
   ]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<EventFilterType>('all');
 
   // Fetch live public events from database
   useEffect(() => {
@@ -247,53 +241,18 @@ export function EventsPage() {
     return allEvents.filter((e) => e.isVisible !== false);
   }, [allEvents]);
 
-  // Compute live event counts for the filter tabs
-  const filterCounts = useMemo(() => {
-    return {
-      all: visibleEvents.length,
-      featured: visibleEvents.filter((e) => Boolean(e.featured)).length,
-      coming: visibleEvents.filter(isComingEvent).length,
-      past: visibleEvents.filter(isPastEvent).length,
-    };
-  }, [visibleEvents]);
-
-  // Helper filter function for search term
-  const matchesSearch = (event: EventData) => {
-    if (!searchTerm.trim()) return true;
-    const q = searchTerm.toLowerCase();
-    return (
-      event.title?.toLowerCase().includes(q) ||
-      event.description?.toLowerCase().includes(q) ||
-      event.location?.toLowerCase().includes(q) ||
-      event.category?.toLowerCase().includes(q)
-    );
-  };
-
   // Group events into their canonical original UI sections
   const featuredEvents = useMemo(() => {
-    return visibleEvents.filter((e) => e.featured && matchesSearch(e));
-  }, [visibleEvents, searchTerm]);
+    return visibleEvents.filter((e) => Boolean(e.featured));
+  }, [visibleEvents]);
 
   const upcomingList = useMemo(() => {
-    return visibleEvents.filter((e) => !e.featured && isComingEvent(e) && matchesSearch(e));
-  }, [visibleEvents, searchTerm]);
+    return visibleEvents.filter((e) => !e.featured && isComingEvent(e));
+  }, [visibleEvents]);
 
   const pastEvents = useMemo(() => {
-    return visibleEvents.filter((e) => !e.featured && isPastEvent(e) && matchesSearch(e));
-  }, [visibleEvents, searchTerm]);
-
-  // Section visibility based on active filter
-  const showFeaturedSection =
-    (activeFilter === 'all' || activeFilter === 'featured') && featuredEvents.length > 0;
-  const showUpcomingSection =
-    (activeFilter === 'all' || activeFilter === 'coming') && upcomingList.length > 0;
-  const showPastSection =
-    (activeFilter === 'all' || activeFilter === 'past') && pastEvents.length > 0;
-
-  const totalMatching =
-    (showFeaturedSection ? featuredEvents.length : 0) +
-    (showUpcomingSection ? upcomingList.length : 0) +
-    (showPastSection ? pastEvents.length : 0);
+    return visibleEvents.filter((e) => !e.featured && isPastEvent(e));
+  }, [visibleEvents]);
 
   const participantTestimonials = [
     {
@@ -340,90 +299,8 @@ export function EventsPage() {
         </div>
       </Section>
 
-      {/* Search Bar & Event Filter Navigation Bars */}
-      <div className="max-w-5xl mx-auto px-4 -mt-8 md:-mt-12 mb-8 relative z-10">
-        {/* Search Bar */}
-        <div className="max-w-xl mx-auto mb-5">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by title, category or status..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-10 py-3 rounded-full bg-white/95 backdrop-blur-md border border-gray-200 text-gray-800 shadow-sm focus:border-[#50b94b] focus:ring-2 focus:ring-[#50b94b]/20"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                aria-label="Clear search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* 4 Filter Navigation Buttons: [ All ] [ Featured ] [ Coming ] [ Past ] */}
-        <div className="flex items-center justify-center">
-          <div className="inline-flex items-center p-1.5 rounded-2xl bg-white/95 backdrop-blur-md border border-gray-200/90 shadow-xs gap-1 sm:gap-2 overflow-x-auto max-w-full scrollbar-none">
-            {[
-              { id: 'all', label: 'All', count: filterCounts.all },
-              { id: 'featured', label: 'Featured', count: filterCounts.featured },
-              { id: 'coming', label: 'Coming', count: filterCounts.coming },
-              { id: 'past', label: 'Past', count: filterCounts.past },
-            ].map((tab) => {
-              const isSelected = activeFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveFilter(tab.id as EventFilterType)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#50b94b] text-white shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
-                      isSelected ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Empty State when no events match search or filter */}
-      {totalMatching === 0 && (
-        <div className="max-w-3xl mx-auto px-4 py-16 text-center bg-white/80 backdrop-blur-md rounded-3xl border border-gray-100 my-8">
-          <p className="text-lg font-semibold text-gray-800 mb-2">No events found</p>
-          <p className="text-sm text-gray-500 mb-6">
-            No events match your current search or filter criteria.
-          </p>
-          <Button
-            variant="outline"
-            className="border-[#50b94b] text-[#50b94b] hover:bg-green-50"
-            onClick={() => {
-              setActiveFilter('all');
-              setSearchTerm('');
-            }}
-          >
-            Reset Filters
-          </Button>
-        </div>
-      )}
-
       {/* Featured Events Section (Original Layout & Alignment) */}
-      {showFeaturedSection && (
+      {featuredEvents.length > 0 && (
         <Section background="white" className={transparentSectionClass}>
           <div className="space-y-6 max-w-5xl mx-auto">
             {featuredEvents.map((event, idx) => (
@@ -479,7 +356,7 @@ export function EventsPage() {
       )}
 
       {/* Upcoming Events Section (Original Layout & Alignment) */}
-      {showUpcomingSection && (
+      {upcomingList.length > 0 && (
         <Section
           eyebrow={t('events.upcoming.eyebrow')}
           title={t('events.upcoming')}
@@ -535,7 +412,7 @@ export function EventsPage() {
       )}
 
       {/* Past Events Section (Original Layout & Alignment) */}
-      {showPastSection && (
+      {pastEvents.length > 0 && (
         <Section
           eyebrow={t('events.past.eyebrow')}
           title={t('events.past')}
