@@ -18,6 +18,7 @@ import {
   uploadAdminGallery,
   updateAdminBlogSubmission,
   updateAdminEvent,
+  toggleAdminEventVisibility,
   updateAdminContact,
   updateAdminRegistration,
   updateAdminSubscriber,
@@ -53,6 +54,7 @@ router.put('/admin/newsletters/:id', requireAdminAuth, updateAdminSubscriber);
 router.get('/admin/events', requireAdminAuth, getAdminEvents);
 router.post('/admin/events', requireAdminAuth, createAdminEvent);
 router.put('/admin/events/:id', requireAdminAuth, updateAdminEvent);
+router.patch('/admin/events/:id/visibility', requireAdminAuth, toggleAdminEventVisibility);
 router.delete('/admin/events/:id', requireAdminAuth, deleteAdminEvent);
 
 router.get('/admin/gallery', requireAdminAuth, getAdminGallery);

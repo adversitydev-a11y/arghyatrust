@@ -43,6 +43,7 @@ export interface EventItem {
   registrationLink?: string;
   brochureUrl?: string;
   featured?: boolean;
+  isVisible?: boolean;
   sortOrder?: number;
 }
 

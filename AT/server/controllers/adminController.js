@@ -408,6 +408,7 @@ export async function createAdminEvent(req, res, next) {
       registrationLink: payload.registrationLink,
       brochureUrl: payload.brochureUrl,
       featured: Boolean(payload.featured),
+      isVisible: payload.isVisible !== undefined ? Boolean(payload.isVisible) : true,
       sortOrder: Number.isFinite(Number(payload.sortOrder)) ? Number(payload.sortOrder) : 0,
     });
     return res.status(201).json({ ok: true, data: doc });
@@ -427,29 +428,55 @@ export async function updateAdminEvent(req, res, next) {
       return res.status(400).json({ error: 'title, description, date and category are required' });
     }
 
+    const updateFields = {
+      title,
+      description,
+      date,
+      category,
+      status: payload.status === 'Completed' ? 'Completed' : 'Upcoming',
+      imageUrl: payload.imageUrl,
+      location: payload.location,
+      participants: Number.isFinite(Number(payload.participants))
+        ? Number(payload.participants)
+        : undefined,
+      registrationLink: payload.registrationLink,
+      brochureUrl: payload.brochureUrl,
+      featured: Boolean(payload.featured),
+      sortOrder: Number.isFinite(Number(payload.sortOrder)) ? Number(payload.sortOrder) : 0,
+    };
+
+    if (payload.isVisible !== undefined) {
+      updateFields.isVisible = Boolean(payload.isVisible);
+    }
+
     const doc = await Event.findByIdAndUpdate(
       id,
-      {
-        title,
-        description,
-        date,
-        category,
-        status: payload.status === 'Completed' ? 'Completed' : 'Upcoming',
-        imageUrl: payload.imageUrl,
-        location: payload.location,
-        participants: Number.isFinite(Number(payload.participants))
-          ? Number(payload.participants)
-          : undefined,
-        registrationLink: payload.registrationLink,
-        brochureUrl: payload.brochureUrl,
-        featured: Boolean(payload.featured),
-        sortOrder: Number.isFinite(Number(payload.sortOrder)) ? Number(payload.sortOrder) : 0,
-      },
+      updateFields,
       { new: true, runValidators: true },
     ).lean();
 
     if (!doc) return res.status(404).json({ error: 'Event not found' });
     return res.json({ ok: true, data: doc });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function toggleAdminEventVisibility(req, res, next) {
+  try {
+    const id = parseObjectId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid event id' });
+
+    const existing = await Event.findById(id);
+    if (!existing) return res.status(404).json({ error: 'Event not found' });
+
+    const newVisibility = typeof req.body?.isVisible === 'boolean'
+      ? req.body.isVisible
+      : !existing.isVisible;
+
+    existing.isVisible = newVisibility;
+    await existing.save();
+    return res.json({ ok: true, data: existing });
   } catch (error) {
     return next(error);
   }

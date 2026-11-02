@@ -1,5 +1,5 @@
 import { type FormEvent, useMemo, useState } from 'react';
-import { Plus, Edit, Trash2, Calendar, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Search, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
@@ -51,6 +51,7 @@ export function EventsManagementPage({
     registrationLink: '/contact',
     brochureUrl: '',
     featured: false,
+    isVisible: true,
     sortOrder: '0',
   });
 
@@ -72,6 +73,7 @@ export function EventsManagementPage({
         registrationLink: event.registrationLink || '/contact',
         brochureUrl: event.brochureUrl || '',
         featured: Boolean(event.featured),
+        isVisible: event.isVisible !== false,
         sortOrder: Number.isFinite(Number(event.sortOrder)) ? String(event.sortOrder) : '0',
       });
     } else {
@@ -88,6 +90,7 @@ export function EventsManagementPage({
         registrationLink: '/contact',
         brochureUrl: '',
         featured: false,
+        isVisible: true,
         sortOrder: '0',
       });
     }
@@ -113,6 +116,7 @@ export function EventsManagementPage({
       registrationLink: formData.registrationLink.trim() || '/contact',
       brochureUrl: formData.brochureUrl.trim(),
       featured: formData.featured,
+      isVisible: formData.isVisible,
       sortOrder: Number.isFinite(sortOrderValue) ? sortOrderValue : 0,
     };
 
@@ -203,9 +207,51 @@ export function EventsManagementPage({
                   >
                     {event.status}
                   </span>
+                  <span
+                    className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                      event.isVisible !== false
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {event.isVisible !== false ? 'Visible' : 'Hidden'}
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title={event.isVisible !== false ? 'Hide Event' : 'Make Visible'}
+                      onClick={() =>
+                        onEditEvent(event.id, {
+                          title: event.title,
+                          description: event.description,
+                          date: event.date,
+                          category: event.category,
+                          status: event.status,
+                          imageUrl: event.imageUrl,
+                          location: event.location,
+                          participants: event.participants,
+                          registrationLink: event.registrationLink,
+                          brochureUrl: event.brochureUrl,
+                          featured: event.featured,
+                          sortOrder: event.sortOrder,
+                          isVisible: !(event.isVisible !== false),
+                        })
+                      }
+                      className={
+                        event.isVisible !== false
+                          ? 'text-amber-600 hover:bg-amber-50'
+                          : 'text-emerald-600 hover:bg-emerald-50'
+                      }
+                    >
+                      {event.isVisible !== false ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -397,15 +443,28 @@ export function EventsManagementPage({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                id="featured"
-                type="checkbox"
-                checked={formData.featured}
-                onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50]"
-              />
-              <Label htmlFor="featured">Show as Featured Event on Home page</Label>
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-2">
+                <input
+                  id="featured"
+                  type="checkbox"
+                  checked={formData.featured}
+                  onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50]"
+                />
+                <Label htmlFor="featured">Show as Featured Event on Home page</Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="isVisible"
+                  type="checkbox"
+                  checked={formData.isVisible}
+                  onChange={(e) => setFormData({ ...formData, isVisible: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50]"
+                />
+                <Label htmlFor="isVisible">Visible to Public (uncheck to hide from public site)</Label>
+              </div>
             </div>
 
             <div className="flex gap-3 pt-4">

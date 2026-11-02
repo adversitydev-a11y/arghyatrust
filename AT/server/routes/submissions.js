@@ -133,9 +133,10 @@ router.post('/newsletter', async (req, res, next) => {
   }
 });
 
-router.get('/events', async (_req, res, next) => {
+router.get('/events', async (req, res, next) => {
   try {
-    const events = await Event.find({})
+    const filter = req.query?.includeHidden === 'true' ? {} : { isVisible: { $ne: false } };
+    const events = await Event.find(filter)
       .sort({ featured: -1, status: 1, sortOrder: 1, createdAt: -1 })
       .lean();
     return res.json({ ok: true, data: events });
@@ -370,22 +371,27 @@ router.put('/admin/events/:id', requireAdminAuth, async (req, res, next) => {
       return res.status(400).json({ error: 'title, description, date and category are required' });
     }
 
+    const updateData = {
+      title,
+      description,
+      date,
+      category,
+      status: status === 'Completed' ? 'Completed' : 'Upcoming',
+      imageUrl,
+      location,
+      participants: Number.isFinite(Number(participants)) ? Number(participants) : undefined,
+      registrationLink,
+      brochureUrl,
+      featured: Boolean(featured),
+      sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
+    };
+    if (req.body?.isVisible !== undefined) {
+      updateData.isVisible = Boolean(req.body.isVisible);
+    }
+
     const updated = await Event.findByIdAndUpdate(
       id,
-      {
-        title,
-        description,
-        date,
-        category,
-        status: status === 'Completed' ? 'Completed' : 'Upcoming',
-        imageUrl,
-        location,
-        participants: Number.isFinite(Number(participants)) ? Number(participants) : undefined,
-        registrationLink,
-        brochureUrl,
-        featured: Boolean(featured),
-        sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
-      },
+      updateData,
       { new: true, runValidators: true },
     ).lean();
 

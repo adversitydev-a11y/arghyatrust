@@ -55,7 +55,7 @@ jobs:
             echo "🚀 Starting Deployment on VPS..."
 
             # 1. Navigate to the project directory
-            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH || '/www/wwwroot/arghyatrust' }}"
+            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH || '/www/wwwroot/arghyatrust.org' }}"
             cd "$DEPLOY_PATH"
 
             # 2. Pull the latest tested commit from GitHub main

@@ -186,9 +186,10 @@ export async function trackCta(req, res, next) {
   }
 }
 
-export async function getPublicEvents(_req, res, next) {
+export async function getPublicEvents(req, res, next) {
   try {
-    const events = await Event.find({})
+    const filter = req.query?.includeHidden === 'true' ? {} : { isVisible: { $ne: false } };
+    const events = await Event.find(filter)
       .sort({ featured: -1, status: 1, sortOrder: 1, createdAt: -1 })
       .lean();
     return res.json({ ok: true, data: events });

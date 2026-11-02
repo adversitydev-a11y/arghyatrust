@@ -117,6 +117,7 @@ function mapEvent(item: any): EventItem {
     registrationLink: item.registrationLink || '',
     brochureUrl: item.brochureUrl || '',
     featured: Boolean(item.featured),
+    isVisible: item.isVisible !== false,
     sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 0,
   };
 }
