@@ -69,6 +69,12 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '1mb' }));
 if (!isProduction) {
   app.use('/assets', express.static(path.join(__dirname, '../src/assets')));
+  app.get('/', (_req, res) => {
+    return res.redirect('http://localhost:5173');
+  });
+  app.get('/admin', (_req, res) => {
+    return res.redirect('http://localhost:5174');
+  });
 }
 app.use('/uploads', express.static(path.join(__dirname, './uploads')));
 app.get('/api/health', (_req, res) => {
