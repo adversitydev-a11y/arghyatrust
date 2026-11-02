@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getApprovedBlogs,
   getPublicEvents,
+  getPublicEventBySlugOrId,
   getPublicGallery,
   submitBlog,
   submitContact,
@@ -21,6 +22,7 @@ router.post('/newsletter', submitNewsletter);
 router.post('/blogs/submit', blogUpload.single('image'), submitBlog);
 router.post('/cta', trackCta);
 router.get('/events', getPublicEvents);
+router.get('/events/:slugOrId', getPublicEventBySlugOrId);
 router.get('/gallery', getPublicGallery);
 router.get('/blogs', getApprovedBlogs);
 

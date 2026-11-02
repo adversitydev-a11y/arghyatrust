@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { ContactMessage } from '../models/ContactMessage.js';
 import { VolunteerApplication } from '../models/VolunteerApplication.js';
 import { NewsletterSubscriber } from '../models/NewsletterSubscriber.js';
@@ -193,6 +194,47 @@ export async function getPublicEvents(req, res, next) {
       .sort({ featured: -1, status: 1, sortOrder: 1, createdAt: -1 })
       .lean();
     return res.json({ ok: true, data: events });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getPublicEventBySlugOrId(req, res, next) {
+  try {
+    const { slugOrId } = req.params;
+    if (!slugOrId) {
+      return res.status(400).json({ error: 'Event identifier is required' });
+    }
+
+    const cleanParam = String(slugOrId).trim().toLowerCase();
+    const isId = mongoose.Types.ObjectId.isValid(slugOrId);
+    let event = null;
+
+    if (isId) {
+      event = await Event.findOne({ _id: slugOrId, isVisible: { $ne: false } }).lean();
+    }
+
+    if (!event) {
+      event = await Event.findOne({ slug: cleanParam, isVisible: { $ne: false } }).lean();
+    }
+
+    if (!event) {
+      const allEvents = await Event.find({ isVisible: { $ne: false } }).lean();
+      event = allEvents.find((e) => {
+        if (e.slug && e.slug.toLowerCase() === cleanParam) return true;
+        const generatedSlug = slugify(e.title);
+        if (generatedSlug === cleanParam) return true;
+        if (cleanParam.replace(/-/g, '') === generatedSlug.replace(/-/g, '')) return true;
+        if (cleanParam.replace('-abhiyana', '') === generatedSlug.replace('-abhiyana', '')) return true;
+        return false;
+      });
+    }
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    return res.json({ ok: true, data: event });
   } catch (error) {
     return next(error);
   }

@@ -66,6 +66,7 @@ async function getJson<T>(path: string): Promise<T> {
 
 export interface PublicEvent {
   _id: string;
+  slug?: string;
   title: string;
   description: string;
   date: string;
@@ -166,6 +167,14 @@ export function getPublicEvents(includeHidden = false) {
       brochureUrl: normalizeMediaUrl(event.brochureUrl),
     })),
   );
+}
+
+export function getPublicEventBySlug(slugOrId: string) {
+  return getJson<PublicEvent>(`/api/events/${encodeURIComponent(slugOrId)}`).then((event) => ({
+    ...event,
+    imageUrl: normalizeMediaUrl(event.imageUrl),
+    brochureUrl: normalizeMediaUrl(event.brochureUrl),
+  }));
 }
 
 export async function updateEventDetails(
