@@ -1,0 +1,84 @@
+name: Safe CI/CD Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  # -----------------------------------------------------------
+  # Step 1: CI Verification (Prevents broken builds on live VPS)
+  # -----------------------------------------------------------
+  verify_build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm ci || npm install
+          npm run install:all
+
+      - name: Test Production Build
+        run: npm run build
+
+  # -----------------------------------------------------------
+  # Step 2: Safe CD Deploy (Executes only if build succeeds)
+  # -----------------------------------------------------------
+  deploy:
+    name: Deploy to aaPanel / VPS
+    needs: verify_build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Execute Remote SSH Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Starting Deployment on VPS..."
+
+            # 1. Navigate to the project directory
+            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH || '/www/wwwroot/arghyatrust' }}"
+            cd "$DEPLOY_PATH"
+
+            # 2. Pull the latest tested commit from GitHub main
+            echo "📥 Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # 3. Install packages safely
+            echo "📦 Installing dependencies..."
+            npm run install:all
+
+            # 4. Build both AT (public) and Admin frontends
+            echo "🔨 Building frontends for production..."
+            npm run build
+
+            # 5. Reload PM2 process with zero downtime
+            echo "🔄 Reloading PM2 process..."
+            if pm2 describe arghya-trust > /dev/null 2>&1; then
+              pm2 reload ecosystem.config.cjs --update-env
+            else
+              pm2 start ecosystem.config.cjs
+            fi
+            pm2 save
+
+            echo "✅ Deployment completed successfully!"
+
