@@ -55,13 +55,38 @@ jobs:
             echo "🚀 Starting Deployment on VPS..."
 
             # 1. Navigate to the project directory
-            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH || '/www/wwwroot/arghyatrust' }}"
+            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH || '/www/wwwroot/arghyatrust.org' }}"
             cd "$DEPLOY_PATH"
+
+            # 1.5 Preserve persistent uploaded media before git sync
+            echo "💾 Backing up persistent uploads..."
+            mkdir -p "$DEPLOY_PATH/uploads_backup/gallery"
+            mkdir -p "$DEPLOY_PATH/uploads_backup/events"
+            mkdir -p "$DEPLOY_PATH/uploads_backup/blogs"
+            if [ -d "$DEPLOY_PATH/AT/server/uploads" ]; then
+              cp -rn "$DEPLOY_PATH/AT/server/uploads/"* "$DEPLOY_PATH/uploads_backup/" 2>/dev/null || true
+            fi
+            if [ -d "$DEPLOY_PATH/server/uploads" ]; then
+              cp -rn "$DEPLOY_PATH/server/uploads/"* "$DEPLOY_PATH/uploads_backup/" 2>/dev/null || true
+            fi
 
             # 2. Pull the latest tested commit from GitHub main
             echo "📥 Pulling latest code..."
             git fetch origin main
             git reset --hard origin/main
+
+            # 2.5 Ensure persistent upload dirs exist and restore backups
+            echo "🔄 Restoring persistent uploads..."
+            mkdir -p "$DEPLOY_PATH/AT/server/uploads/gallery"
+            mkdir -p "$DEPLOY_PATH/AT/server/uploads/events"
+            mkdir -p "$DEPLOY_PATH/AT/server/uploads/blogs"
+            mkdir -p "$DEPLOY_PATH/server/uploads/gallery"
+            mkdir -p "$DEPLOY_PATH/server/uploads/events"
+            mkdir -p "$DEPLOY_PATH/server/uploads/blogs"
+            if [ -d "$DEPLOY_PATH/uploads_backup" ]; then
+              cp -rn "$DEPLOY_PATH/uploads_backup/"* "$DEPLOY_PATH/AT/server/uploads/" 2>/dev/null || true
+              cp -rn "$DEPLOY_PATH/uploads_backup/"* "$DEPLOY_PATH/server/uploads/" 2>/dev/null || true
+            fi
 
             # 3. Install packages safely
             echo "📦 Installing dependencies..."

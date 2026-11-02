@@ -1,10 +1,10 @@
 function resolveApiBaseUrl() {
+  if (import.meta.env.DEV) {
+    return 'http://localhost:5000';
+  }
   const raw = String(import.meta.env.VITE_API_BASE_URL || '').trim();
   if (raw && (raw.startsWith('http://') || raw.startsWith('https://'))) {
     return raw.replace(/\/$/, '');
-  }
-  if (import.meta.env.DEV) {
-    return 'http://localhost:5000';
   }
   return '';
 }
@@ -14,7 +14,7 @@ const API_BASE_URL = resolveApiBaseUrl();
 type RequestBody = Record<string, unknown>;
 type ApiResponse<T> = { ok: boolean; data: T };
 
-function normalizeMediaUrl(url: string | undefined) {
+export function normalizeMediaUrl(url: string | undefined) {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
@@ -66,6 +66,7 @@ async function getJson<T>(path: string): Promise<T> {
 
 export interface PublicEvent {
   _id: string;
+  slug?: string;
   title: string;
   description: string;
   date: string;
@@ -77,6 +78,7 @@ export interface PublicEvent {
   registrationLink?: string;
   brochureUrl?: string;
   featured?: boolean;
+  isVisible?: boolean;
   sortOrder?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -156,14 +158,69 @@ export function trackCta(payload: {
   }).catch(() => undefined);
 }
 
-export function getPublicEvents() {
-  return getJson<PublicEvent[]>('/api/events').then((events) =>
+export function getPublicEvents(includeHidden = false) {
+  const query = includeHidden ? '?includeHidden=true' : '';
+  return getJson<PublicEvent[]>(`/api/events${query}`).then((events) =>
     events.map((event) => ({
       ...event,
       imageUrl: normalizeMediaUrl(event.imageUrl),
       brochureUrl: normalizeMediaUrl(event.brochureUrl),
     })),
   );
+}
+
+export function getPublicEventBySlug(slugOrId: string) {
+  return getJson<PublicEvent>(`/api/events/${encodeURIComponent(slugOrId)}`).then((event) => ({
+    ...event,
+    imageUrl: normalizeMediaUrl(event.imageUrl),
+    brochureUrl: normalizeMediaUrl(event.brochureUrl),
+  }));
+}
+
+export async function updateEventDetails(
+  id: string,
+  payload: Partial<PublicEvent>,
+  token?: string,
+) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}/api/admin/events/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to update event');
+  }
+  return response.json();
+}
+
+export async function toggleEventVisibility(
+  id: string,
+  isVisible: boolean,
+  token?: string,
+) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}/api/admin/events/${id}/visibility`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ isVisible }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to toggle event visibility');
+  }
+  return response.json();
 }
 
 export function getPublicGallery() {

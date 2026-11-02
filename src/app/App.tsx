@@ -6,11 +6,13 @@ import { HomePage } from './pages/HomePage';
 import { AboutPage } from './pages/AboutPage';
 import { DonatePage } from './pages/DonatePage';
 import { EventsPage } from './pages/EventsPage';
+import { EventDetailPage } from './pages/EventDetailPage';
 import { BlogPage } from './pages/BlogPage';
 import { BlogDetailPage } from './pages/BlogDetailPage';
 import { BlogSubmitPage } from './pages/BlogSubmitPage';
 import { ContactPage } from './pages/ContactPage';
 import { GalleryPage } from './pages/GalleryPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { Toaster } from './components/ui/sonner';
 import { useEffect } from 'react';
 import { SeoManager } from './components/SeoManager';
@@ -39,11 +41,13 @@ export default function App() {
               <Route path="/about" element={<AboutPage />} />
               <Route path="/donate" element={<DonatePage />} />
               <Route path="/events" element={<EventsPage />} />
+              <Route path="/events/:slug" element={<EventDetailPage />} />
               <Route path="/gallery" element={<GalleryPage />} />
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/submit" element={<BlogSubmitPage />} />
               <Route path="/blog/:slug" element={<BlogDetailPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </main>
           <Footer />

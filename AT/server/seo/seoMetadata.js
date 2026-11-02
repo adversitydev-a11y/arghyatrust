@@ -196,6 +196,34 @@ export async function resolveRouteSeo(pathname) {
     }
   }
 
+  if (normalized.startsWith('/events/')) {
+    const slug = normalized.replace('/events/', '').trim().toLowerCase();
+    try {
+      const allEvents = await Event.find({ isVisible: { $ne: false } }).lean();
+      const event = allEvents.find((e) => {
+        if (e.slug && e.slug.toLowerCase() === slug) return true;
+        if (String(e._id) === slug) return true;
+        return false;
+      });
+
+      if (event) {
+        return {
+          found: true,
+          statusCode: 200,
+          title: `${event.title} | Arghya Trust Events`,
+          description: event.description,
+          canonical: `${CANONICAL_DOMAIN}/events/${event.slug || event._id}`,
+          ogType: 'website',
+          ogImage: event.imageUrl?.startsWith('http')
+            ? event.imageUrl
+            : `${CANONICAL_DOMAIN}${event.imageUrl || '/og-image.jpg'}`,
+        };
+      }
+    } catch {
+      // db lookup silent fallback
+    }
+  }
+
   // Not a valid public route
   return {
     found: false,
@@ -288,12 +316,21 @@ export function injectSeoIntoHtml(rawHtml, seo) {
 
 export async function generateSitemapXml() {
   let dynamicBlogs = [];
+  let dynamicEvents = [];
   try {
     dynamicBlogs = await BlogSubmission.find({ status: 'approved' })
       .select('slug updatedAt createdAt')
       .lean();
   } catch {
     dynamicBlogs = [];
+  }
+
+  try {
+    dynamicEvents = await Event.find({ isVisible: { $ne: false } })
+      .select('slug _id updatedAt createdAt')
+      .lean();
+  } catch {
+    dynamicEvents = [];
   }
 
   const pagesUrls = Object.entries(staticPagesMetadata)
@@ -331,12 +368,25 @@ export async function generateSitemapXml() {
     })
     .join('\n');
 
+  const dynamicEventUrls = dynamicEvents
+    .map((e) => {
+      const date = (e.updatedAt || e.createdAt || new Date()).toISOString().split('T')[0];
+      return `  <url>
+    <loc>${CANONICAL_DOMAIN}/events/${e.slug || e._id}</loc>
+    <lastmod>${date}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+    })
+    .join('\n');
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${pagesUrls}
 ${staticBlogUrls}
 ${dynamicBlogUrls}
+${dynamicEventUrls}
 </urlset>`;
 }
 

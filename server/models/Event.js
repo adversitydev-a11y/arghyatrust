@@ -13,11 +13,12 @@ const eventSchema = new mongoose.Schema(
     registrationLink: { type: String, trim: true, maxlength: 500 },
     brochureUrl: { type: String, trim: true, maxlength: 1000 },
     featured: { type: Boolean, default: false },
+    isVisible: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
 
-eventSchema.index({ status: 1, featured: -1, sortOrder: 1, createdAt: -1 });
+eventSchema.index({ isVisible: 1, status: 1, featured: -1, sortOrder: 1, createdAt: -1 });
 
 export const Event = mongoose.models.Event || mongoose.model('Event', eventSchema);

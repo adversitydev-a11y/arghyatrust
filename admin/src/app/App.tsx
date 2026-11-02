@@ -27,6 +27,7 @@ import {
   getSummary,
   getVolunteers,
   loginAdmin,
+  uploadEventImage,
   uploadGalleryImageProgram,
   uploadGalleryImageUpdate,
   updateBlogSubmission,
@@ -103,7 +104,7 @@ export default function App() {
   const fetchAllData = async (token: string) => {
     setIsLoading(true);
     try {
-      const [summaryData, contactsData, volunteersData, newsletterData, eventsData, galleryData, blogData] = await Promise.all([
+      const results = await Promise.allSettled([
         getSummary(token),
         getContacts(token),
         getVolunteers(token),
@@ -113,24 +114,32 @@ export default function App() {
         getBlogSubmissions(token),
       ]);
 
-      setSummary(summaryData);
-      setContacts(contactsData);
-      setVolunteers(volunteersData);
-      setNewsletters(newsletterData);
-      setEvents(eventsData);
-      setGalleryImages(galleryData);
-      setBlogSubmissions(blogData);
+      const [summaryRes, contactsRes, volunteersRes, newsletterRes, eventsRes, galleryRes, blogRes] = results;
+
+      if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
+      if (contactsRes.status === 'fulfilled') setContacts(contactsRes.value);
+      if (volunteersRes.status === 'fulfilled') setVolunteers(volunteersRes.value);
+      if (newsletterRes.status === 'fulfilled') setNewsletters(newsletterRes.value);
+      if (eventsRes.status === 'fulfilled') setEvents(eventsRes.value);
+      if (galleryRes.status === 'fulfilled') setGalleryImages(galleryRes.value);
+      if (blogRes.status === 'fulfilled') setBlogSubmissions(blogRes.value);
+
+      // Check if any error indicates invalid/expired token
+      const rejected = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+      if (rejected) {
+        const error = rejected.reason;
+        const message = error instanceof Error ? error.message : String(error || 'Data loading warning');
+        if (
+          message.toLowerCase().includes('unauthorized') ||
+          message.toLowerCase().includes('invalid or expired token')
+        ) {
+          toast.error('Session expired. Please log in again.');
+          handleLogout();
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load admin data';
       toast.error(message);
-      const status = typeof error === 'object' && error && 'status' in error ? Number((error as any).status) : 0;
-      if (
-        status === 401 ||
-        message.toLowerCase().includes('unauthorized') ||
-        message.toLowerCase().includes('invalid or expired token')
-      ) {
-        handleLogout();
-      }
     } finally {
       setIsLoading(false);
     }
@@ -281,28 +290,46 @@ export default function App() {
     }
   };
 
-  const handleAddEvent = async (event: Omit<EventItem, 'id'>) => {
+  const handleAddEvent = async (event: Omit<EventItem, 'id'>, imageFile?: File | null) => {
     try {
       const token = requireToken();
-      const created = await createEvent(token, event);
+      let imageUrl = event.imageUrl;
+      if (imageFile) {
+        const uploadRes = await uploadEventImage(token, imageFile);
+        imageUrl = uploadRes.imageUrl;
+      }
+      const created = await createEvent(token, { ...event, imageUrl });
       setEvents((prev) => [created, ...prev]);
       setSummary((prev) => ({ ...prev, events: prev.events + 1 }));
       toast.success('Event added successfully');
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to add event';
       toast.error(message);
+      return false;
     }
   };
 
-  const handleEditEvent = async (id: string, updatedEvent: Omit<EventItem, 'id'>) => {
+  const handleEditEvent = async (
+    id: string,
+    updatedEvent: Omit<EventItem, 'id'>,
+    imageFile?: File | null,
+  ) => {
     try {
       const token = requireToken();
-      const updated = await updateEvent(token, id, updatedEvent);
+      let imageUrl = updatedEvent.imageUrl;
+      if (imageFile) {
+        const uploadRes = await uploadEventImage(token, imageFile);
+        imageUrl = uploadRes.imageUrl;
+      }
+      const updated = await updateEvent(token, id, { ...updatedEvent, imageUrl });
       setEvents((prev) => prev.map((event) => (event.id === id ? updated : event)));
       toast.success('Event updated successfully');
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update event';
       toast.error(message);
+      return false;
     }
   };
 

@@ -107,6 +107,69 @@ export const defaultEvents = [
   },
 ];
 
+export const defaultGalleryAlbums = [
+  {
+    caption: 'Newsletters',
+    url: '/uploads/gallery/1789111303414-549444144.jpg',
+    mainImageUrl: '/uploads/gallery/1789111303414-549444144.jpg',
+    relatedImages: [
+      '/uploads/gallery/1789111303417-353168812.jpg',
+      '/uploads/gallery/1789111303423-693676401.jpg',
+      '/uploads/gallery/1789111303424-410541476.jpg',
+    ],
+    sortOrder: 1,
+  },
+  {
+    caption: 'Programs',
+    url: '/uploads/gallery/1789111447003-502704774.jpg',
+    mainImageUrl: '/uploads/gallery/1789111447003-502704774.jpg',
+    relatedImages: [
+      '/uploads/gallery/1789111447005-177447464.jpg',
+      '/uploads/gallery/1789111447012-844097431.jpg',
+      '/uploads/gallery/1789111447024-192702266.jpg',
+      '/uploads/gallery/1789111447025-604777390.jpg',
+      '/uploads/gallery/1789111447039-934954795.jpg',
+      '/uploads/gallery/1789111447073-572749007.jpg',
+      '/uploads/gallery/1789111447090-765077203.jpg',
+      '/uploads/gallery/1789111447095-386470461.jpg',
+    ],
+    sortOrder: 2,
+  },
+  {
+    caption: 'Awareness & Social Initiatives',
+    url: '/uploads/gallery/1790710205341-298439027.jpg',
+    mainImageUrl: '/uploads/gallery/1790710205341-298439027.jpg',
+    relatedImages: ['/uploads/gallery/1788949999343-226915152.png'],
+    sortOrder: 3,
+  },
+  {
+    caption: 'Spiritual Events & Yagnas',
+    url: '/uploads/gallery/1771319220670-403403049.jpg',
+    mainImageUrl: '/uploads/gallery/1771319220670-403403049.jpg',
+    relatedImages: [
+      '/uploads/gallery/1771319220717-59013514.jpg',
+      '/uploads/gallery/1771319220756-65433558.jpg',
+      '/uploads/gallery/1771319220774-527917695.jpg',
+      '/uploads/gallery/1771319706119-946241520.jpg',
+      '/uploads/gallery/1771319706103-200177782.jpg',
+      '/uploads/gallery/1771319706150-625552103.jpg',
+      '/uploads/gallery/1771319220787-261873940.jpg',
+    ],
+    sortOrder: 4,
+  },
+  {
+    caption: 'Community Outreach & Cultural Initiatives',
+    url: '/uploads/gallery/1771319220589-45688046.jpg',
+    mainImageUrl: '/uploads/gallery/1771319220589-45688046.jpg',
+    relatedImages: [
+      '/uploads/gallery/1771319220606-958334281.jpg',
+      '/uploads/gallery/1771319220639-246617765.jpg',
+      '/uploads/gallery/1771319220651-329241588.jpg',
+    ],
+    sortOrder: 5,
+  },
+];
+
 export const defaultGalleryImages = [
   { url: '/assets/F1.jpg', caption: 'Community cultural gathering', sortOrder: 1 },
   { url: '/assets/F2.jpg', caption: 'Spiritual event moments', sortOrder: 2 },

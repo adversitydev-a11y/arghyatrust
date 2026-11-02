@@ -67,10 +67,58 @@ app.use((req, res, next) => {
   return next();
 });
 app.use(express.json({ limit: '1mb' }));
-if (!isProduction) {
-  app.use('/assets', express.static(path.join(__dirname, '../src/assets')));
+// Assets fallback static serving
+const assetDirs = [
+  path.join(__dirname, '../src/assets'),
+  path.join(__dirname, '../../src/assets'),
+];
+for (const ad of assetDirs) {
+  try {
+    if (fs.existsSync(ad)) {
+      app.use('/assets', express.static(ad, { maxAge: '7d', fallthrough: true }));
+    }
+  } catch {
+    // safe fallback
+  }
 }
-app.use('/uploads', express.static(path.join(__dirname, './uploads')));
+
+if (!isProduction) {
+  app.get('/', (_req, res) => {
+    return res.redirect('http://localhost:5173');
+  });
+  app.get('/admin', (_req, res) => {
+    return res.redirect('http://localhost:5174');
+  });
+}
+
+// Persistent uploads serving with multi-tier directory fallbacks
+const primaryUploads = process.env.UPLOADS_PATH
+  ? (path.isAbsolute(process.env.UPLOADS_PATH) ? process.env.UPLOADS_PATH : path.resolve(process.cwd(), process.env.UPLOADS_PATH))
+  : path.join(__dirname, './uploads');
+
+const fallbackUploadDirs = [
+  primaryUploads,
+  path.resolve(__dirname, './uploads'),
+  path.resolve(__dirname, '../../server/uploads'),
+  path.resolve(__dirname, '../server/uploads'),
+  '/www/wwwroot/arghyatrust.org/server/uploads',
+  '/www/wwwroot/arghyatrust.org/AT/server/uploads',
+  '/www/wwwroot/arghyatrust.org/uploads',
+];
+
+const uniqueUploadDirs = [...new Set(fallbackUploadDirs)];
+for (const dir of uniqueUploadDirs) {
+  try {
+    if (fs.existsSync(dir)) {
+      app.use('/uploads', express.static(dir, {
+        maxAge: '7d',
+        fallthrough: true,
+      }));
+    }
+  } catch {
+    // safe fallback
+  }
+}
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
@@ -158,6 +206,12 @@ function resolveDir(value, fallbackPath) {
   return path.isAbsolute(value) ? value : path.resolve(process.cwd(), value);
 }
 
+if (!isProduction) {
+  app.get('/', (_req, res) => {
+    res.redirect('http://localhost:5173');
+  });
+}
+
 if (isProduction) {
   const publicDist = resolveDir(process.env.PUBLIC_DIST_PATH, path.resolve(__dirname, '../dist'));
   const adminDist = resolveDir(process.env.ADMIN_DIST_PATH, path.resolve(__dirname, '../../admin/dist'));
@@ -235,16 +289,21 @@ async function connectMongoWithRetry() {
   while (!dbReady) {
     try {
       await connectMongo();
-      await seedDefaults();
-      await ensureDefaultAdmin();
       dbReady = true;
       dbLastError = null;
-      console.log('MongoDB connected and default content/admin seeded.');
+      console.log('MongoDB connected successfully.');
+      try {
+        await seedDefaults();
+        await ensureDefaultAdmin();
+        console.log('Default content & admin verified.');
+      } catch (seedErr) {
+        console.warn('Seeding note (non-fatal):', seedErr?.message || seedErr);
+      }
       return;
     } catch (err) {
       dbReady = false;
       dbLastError = err;
-      console.error('MongoDB connection failed. Retrying in 15 seconds...');
+      console.error('MongoDB connection failed. Retrying in 15 seconds...', err?.message || err);
       await wait(15000);
     }
   }

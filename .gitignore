@@ -30,9 +30,13 @@ server.out.log
 AT/server.err.log
 AT/server.out.log
 
-# Uploaded Media in development
+# Uploaded Media in development (preserve permanent gallery images)
 AT/server/uploads/*
 !AT/server/uploads/.gitkeep
+!AT/server/uploads/gallery/
+!AT/server/uploads/gallery/*
+!server/uploads/gallery/
+!server/uploads/gallery/*
 
 # IDE & OS Files
 .DS_Store
