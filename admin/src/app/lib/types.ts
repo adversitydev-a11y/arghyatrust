@@ -78,5 +78,8 @@ export interface BlogSubmission {
   tags: string[];
   status: 'pending' | 'approved' | 'rejected';
   reviewNotes?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  publishedAt?: string;
   date: string;
 }

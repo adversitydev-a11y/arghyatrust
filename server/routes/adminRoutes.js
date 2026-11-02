@@ -17,6 +17,9 @@ import {
   getAdminSummary,
   uploadAdminGallery,
   updateAdminBlogSubmission,
+  deleteAdminBlogSubmission,
+  getAdminBlogSubmissionById,
+  uploadAdminBlogImage,
   updateAdminEvent,
   updateAdminContact,
   updateAdminRegistration,
@@ -25,7 +28,7 @@ import {
   uploadAdminGalleryUpdate,
 } from '../controllers/adminController.js';
 import { requireAdminAuth } from '../middleware/auth.js';
-import { galleryUpload } from '../middleware/upload.js';
+import { galleryUpload, blogUpload } from '../middleware/upload.js';
 
 const router = Router();
 
@@ -79,6 +82,9 @@ router.put('/admin/gallery/:id', requireAdminAuth, updateAdminGallery);
 router.delete('/admin/gallery/:id', requireAdminAuth, deleteAdminGallery);
 
 router.get('/admin/blog-submissions', requireAdminAuth, getAdminBlogSubmissions);
+router.get('/admin/blog-submissions/:id', requireAdminAuth, getAdminBlogSubmissionById);
+router.post('/admin/blog-submissions/upload-image', requireAdminAuth, blogUpload.single('image'), uploadAdminBlogImage);
 router.put('/admin/blog-submissions/:id', requireAdminAuth, updateAdminBlogSubmission);
+router.delete('/admin/blog-submissions/:id', requireAdminAuth, deleteAdminBlogSubmission);
 
 export default router;

@@ -19,6 +19,7 @@ import {
   deleteGalleryImage,
   deleteNewsletter,
   deleteVolunteer,
+  deleteBlogSubmission,
   getBlogSubmissions,
   getContacts,
   getEvents,
@@ -27,6 +28,7 @@ import {
   getSummary,
   getVolunteers,
   loginAdmin,
+  uploadBlogImage,
   uploadEventImage,
   uploadGalleryImageProgram,
   uploadGalleryImageUpdate,
@@ -429,19 +431,54 @@ export default function App() {
       authorEmail?: string;
       excerpt?: string;
       content?: string;
+      featuredImageUrl?: string;
       tags?: string;
+      seoTitle?: string;
+      seoDescription?: string;
+      publishedAt?: string;
       reviewNotes?: string;
       status?: 'pending' | 'approved' | 'rejected';
     },
+    imageFile?: File | null,
   ) => {
     try {
       const token = requireToken();
-      const updated = await updateBlogSubmission(token, id, payload);
+      let featuredImageUrl = payload.featuredImageUrl;
+      if (imageFile) {
+        const uploadRes = await uploadBlogImage(token, imageFile);
+        featuredImageUrl = uploadRes.imageUrl;
+      }
+      const updated = await updateBlogSubmission(token, id, {
+        ...payload,
+        ...(featuredImageUrl ? { featuredImageUrl } : {}),
+      });
       setBlogSubmissions((prev) => prev.map((item) => (item.id === id ? updated : item)));
-      toast.success(`Blog ${updated.status === 'approved' ? 'approved' : updated.status === 'rejected' ? 'rejected' : 'updated'} successfully`);
+      const actionName =
+        payload.status && payload.status !== 'pending'
+          ? payload.status === 'approved'
+            ? 'approved'
+            : 'rejected'
+          : 'updated';
+      toast.success(`Blog ${actionName} successfully`);
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update blog';
       toast.error(message);
+      return false;
+    }
+  };
+
+  const handleDeleteBlogSubmission = async (id: string) => {
+    try {
+      const token = requireToken();
+      await deleteBlogSubmission(token, id);
+      setBlogSubmissions((prev) => prev.filter((item) => item.id !== id));
+      toast.success('Blog deleted successfully');
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete blog';
+      toast.error(message);
+      return false;
     }
   };
 
@@ -597,6 +634,7 @@ export default function App() {
           <BlogSubmissionsPage
             blogs={blogSubmissions}
             onUpdateBlog={handleUpdateBlogSubmission}
+            onDeleteBlog={handleDeleteBlogSubmission}
           />
         );
       case 'export':

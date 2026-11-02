@@ -151,6 +151,9 @@ function mapBlogSubmission(item: any): BlogSubmission {
     tags: Array.isArray(item.tags) ? item.tags.map((tag: string) => String(tag)) : [],
     status: item.status === 'approved' || item.status === 'rejected' ? item.status : 'pending',
     reviewNotes: item.reviewNotes || '',
+    seoTitle: item.seoTitle || '',
+    seoDescription: item.seoDescription || '',
+    publishedAt: item.publishedAt || item.approvedAt || item.createdAt || '',
     date: item.createdAt ? String(item.createdAt).slice(0, 10) : '',
   };
 }
@@ -466,6 +469,22 @@ export async function getBlogSubmissions(token: string): Promise<BlogSubmission[
   return data.map(mapBlogSubmission);
 }
 
+export async function uploadBlogImage(
+  token: string,
+  file: File,
+): Promise<{ ok: boolean; imageUrl: string; filename: string }> {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await safeFetch(`${API_BASE_URL}/api/admin/blog-submissions/upload-image`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  return parseResponse<{ ok: boolean; imageUrl: string; filename: string }>(response);
+}
+
 export async function updateBlogSubmission(
   token: string,
   id: string,
@@ -476,7 +495,11 @@ export async function updateBlogSubmission(
     authorEmail?: string;
     excerpt?: string;
     content?: string;
+    featuredImageUrl?: string;
     tags?: string;
+    seoTitle?: string;
+    seoDescription?: string;
+    publishedAt?: string;
     reviewNotes?: string;
     status?: 'pending' | 'approved' | 'rejected';
   },
@@ -488,4 +511,13 @@ export async function updateBlogSubmission(
   });
   const data = await parseResponse<any>(response);
   return mapBlogSubmission(data);
+}
+
+export async function deleteBlogSubmission(token: string, id: string): Promise<boolean> {
+  const response = await safeFetch(`${API_BASE_URL}/api/admin/blog-submissions/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  await parseResponse<unknown>(response);
+  return true;
 }

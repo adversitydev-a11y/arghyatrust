@@ -155,7 +155,7 @@ async function generateUniqueSlug(baseTitle, excludeId = null) {
 }
 
 function normalizeBlogDoc(doc) {
-  const publishedAt = doc.approvedAt || doc.updatedAt || doc.createdAt;
+  const publishedAt = doc.publishedAt || doc.approvedAt || doc.updatedAt || doc.createdAt;
   return {
     _id: doc._id,
     title: doc.title,
@@ -171,6 +171,8 @@ function normalizeBlogDoc(doc) {
     tags: Array.isArray(doc.tags) ? doc.tags : [],
     status: doc.status,
     reviewNotes: doc.reviewNotes || '',
+    seoTitle: doc.seoTitle || '',
+    seoDescription: doc.seoDescription || '',
     approvedAt: doc.approvedAt || null,
     rejectedAt: doc.rejectedAt || null,
     publishedAt,
@@ -777,6 +779,25 @@ export async function updateAdminBlogSubmission(req, res, next) {
       update.reviewNotes = String(payload.reviewNotes || '').trim();
     }
 
+    if (payload.featuredImageUrl !== undefined) {
+      const nextFeaturedImageUrl = String(payload.featuredImageUrl || '').trim();
+      if (nextFeaturedImageUrl) {
+        update.featuredImageUrl = nextFeaturedImageUrl;
+      }
+    }
+    if (payload.seoTitle !== undefined) {
+      update.seoTitle = String(payload.seoTitle || '').trim();
+    }
+    if (payload.seoDescription !== undefined) {
+      update.seoDescription = String(payload.seoDescription || '').trim();
+    }
+    if (payload.publishedAt !== undefined && payload.publishedAt) {
+      const parsedPubDate = new Date(payload.publishedAt);
+      if (!Number.isNaN(parsedPubDate.getTime())) {
+        update.publishedAt = parsedPubDate;
+      }
+    }
+
     if (payload.status !== undefined) {
       const nextStatus = String(payload.status || '').trim().toLowerCase();
       if (!['pending', 'approved', 'rejected'].includes(nextStatus)) {
@@ -802,6 +823,53 @@ export async function updateAdminBlogSubmission(req, res, next) {
     if (!updated) return res.status(404).json({ error: 'Blog submission not found' });
 
     return res.json({ ok: true, data: normalizeBlogDoc(updated) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function uploadAdminBlogImage(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please choose an image file to upload.' });
+    }
+    syncUploadFile('blogs', req.file.filename);
+    const imageUrl = `/uploads/blogs/${req.file.filename}`;
+    return res.status(200).json({
+      ok: true,
+      imageUrl,
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getAdminBlogSubmissionById(req, res, next) {
+  try {
+    const id = parseObjectId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid blog id' });
+
+    const blog = await BlogSubmission.findById(id).lean();
+    if (!blog) return res.status(404).json({ error: 'Blog submission not found' });
+
+    return res.json({ ok: true, data: normalizeBlogDoc(blog) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteAdminBlogSubmission(req, res, next) {
+  try {
+    const id = parseObjectId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid blog id' });
+
+    const deleted = await BlogSubmission.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ error: 'Blog submission not found' });
+
+    return res.json({ ok: true, data: true });
   } catch (error) {
     return next(error);
   }
