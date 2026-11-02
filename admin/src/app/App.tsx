@@ -27,6 +27,7 @@ import {
   getSummary,
   getVolunteers,
   loginAdmin,
+  uploadEventImage,
   uploadGalleryImageProgram,
   uploadGalleryImageUpdate,
   updateBlogSubmission,
@@ -289,28 +290,46 @@ export default function App() {
     }
   };
 
-  const handleAddEvent = async (event: Omit<EventItem, 'id'>) => {
+  const handleAddEvent = async (event: Omit<EventItem, 'id'>, imageFile?: File | null) => {
     try {
       const token = requireToken();
-      const created = await createEvent(token, event);
+      let imageUrl = event.imageUrl;
+      if (imageFile) {
+        const uploadRes = await uploadEventImage(token, imageFile);
+        imageUrl = uploadRes.imageUrl;
+      }
+      const created = await createEvent(token, { ...event, imageUrl });
       setEvents((prev) => [created, ...prev]);
       setSummary((prev) => ({ ...prev, events: prev.events + 1 }));
       toast.success('Event added successfully');
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to add event';
       toast.error(message);
+      return false;
     }
   };
 
-  const handleEditEvent = async (id: string, updatedEvent: Omit<EventItem, 'id'>) => {
+  const handleEditEvent = async (
+    id: string,
+    updatedEvent: Omit<EventItem, 'id'>,
+    imageFile?: File | null,
+  ) => {
     try {
       const token = requireToken();
-      const updated = await updateEvent(token, id, updatedEvent);
+      let imageUrl = updatedEvent.imageUrl;
+      if (imageFile) {
+        const uploadRes = await uploadEventImage(token, imageFile);
+        imageUrl = uploadRes.imageUrl;
+      }
+      const updated = await updateEvent(token, id, { ...updatedEvent, imageUrl });
       setEvents((prev) => prev.map((event) => (event.id === id ? updated : event)));
       toast.success('Event updated successfully');
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update event';
       toast.error(message);
+      return false;
     }
   };
 

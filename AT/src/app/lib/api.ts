@@ -14,7 +14,7 @@ const API_BASE_URL = resolveApiBaseUrl();
 type RequestBody = Record<string, unknown>;
 type ApiResponse<T> = { ok: boolean; data: T };
 
-function normalizeMediaUrl(url: string | undefined) {
+export function normalizeMediaUrl(url: string | undefined) {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;

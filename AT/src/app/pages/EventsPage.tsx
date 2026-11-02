@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { getPublicEvents } from '../lib/api';
+import { getPublicEvents, normalizeMediaUrl } from '../lib/api';
 import {
   isPastEvent,
   isComingEvent,
@@ -217,7 +217,7 @@ export function EventsPage() {
               status: srv.status || fallback?.status || 'Upcoming',
               participants: srv.participants ?? fallback?.participants,
               imageUrl: srv.imageUrl,
-              image: srv.imageUrl || fallback?.image || cardImg1,
+              image: normalizeMediaUrl(srv.imageUrl) || fallback?.image || cardImg1,
               registrationLink: srv.registrationLink || fallback?.registrationLink || '/contact',
               brochureUrl: srv.brochureUrl || fallback?.brochureUrl,
               featured: Boolean(srv.featured),

@@ -386,6 +386,24 @@ export async function getAdminEvents(_req, res, next) {
   }
 }
 
+export async function uploadAdminEventImage(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please choose an image file to upload.' });
+    }
+    const imageUrl = `/uploads/events/${req.file.filename}`;
+    return res.status(200).json({
+      ok: true,
+      imageUrl,
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function createAdminEvent(req, res, next) {
   try {
     const payload = req.body || {};
@@ -394,13 +412,15 @@ export async function createAdminEvent(req, res, next) {
       return res.status(400).json({ error: 'title, description, date and category are required' });
     }
 
+    const imageUrl = req.file ? `/uploads/events/${req.file.filename}` : payload.imageUrl;
+
     const doc = await Event.create({
       title,
       description,
       date,
       category,
       status: payload.status === 'Completed' ? 'Completed' : 'Upcoming',
-      imageUrl: payload.imageUrl,
+      imageUrl,
       location: payload.location,
       participants: Number.isFinite(Number(payload.participants))
         ? Number(payload.participants)
@@ -428,13 +448,14 @@ export async function updateAdminEvent(req, res, next) {
       return res.status(400).json({ error: 'title, description, date and category are required' });
     }
 
+    const imageUrl = req.file ? `/uploads/events/${req.file.filename}` : payload.imageUrl;
+
     const updateFields = {
       title,
       description,
       date,
       category,
       status: payload.status === 'Completed' ? 'Completed' : 'Upcoming',
-      imageUrl: payload.imageUrl,
       location: payload.location,
       participants: Number.isFinite(Number(payload.participants))
         ? Number(payload.participants)
@@ -444,6 +465,10 @@ export async function updateAdminEvent(req, res, next) {
       featured: Boolean(payload.featured),
       sortOrder: Number.isFinite(Number(payload.sortOrder)) ? Number(payload.sortOrder) : 0,
     };
+
+    if (imageUrl !== undefined) {
+      updateFields.imageUrl = imageUrl;
+    }
 
     if (payload.isVisible !== undefined) {
       updateFields.isVisible = Boolean(payload.isVisible);

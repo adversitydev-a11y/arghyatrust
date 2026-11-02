@@ -15,6 +15,7 @@ import {
   getAdminRegistrations,
   getAdminSubscribers,
   getAdminSummary,
+  uploadAdminEventImage,
   uploadAdminGallery,
   updateAdminBlogSubmission,
   updateAdminEvent,
@@ -26,7 +27,7 @@ import {
   uploadAdminGalleryUpdate,
 } from '../controllers/adminController.js';
 import { requireAdminAuth } from '../middleware/auth.js';
-import { galleryUpload } from '../middleware/upload.js';
+import { galleryUpload, eventUpload } from '../middleware/upload.js';
 
 const router = Router();
 
@@ -51,9 +52,10 @@ router.delete('/admin/newsletters/:id', requireAdminAuth, deleteAdminSubscriber)
 router.put('/admin/subscribers/:id', requireAdminAuth, updateAdminSubscriber);
 router.put('/admin/newsletters/:id', requireAdminAuth, updateAdminSubscriber);
 
+router.post('/admin/events/upload-image', requireAdminAuth, eventUpload.single('image'), uploadAdminEventImage);
 router.get('/admin/events', requireAdminAuth, getAdminEvents);
-router.post('/admin/events', requireAdminAuth, createAdminEvent);
-router.put('/admin/events/:id', requireAdminAuth, updateAdminEvent);
+router.post('/admin/events', requireAdminAuth, eventUpload.single('image'), createAdminEvent);
+router.put('/admin/events/:id', requireAdminAuth, eventUpload.single('image'), updateAdminEvent);
 router.patch('/admin/events/:id/visibility', requireAdminAuth, toggleAdminEventVisibility);
 router.delete('/admin/events/:id', requireAdminAuth, deleteAdminEvent);
 

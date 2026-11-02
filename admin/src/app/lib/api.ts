@@ -26,7 +26,7 @@ type ApiResponse<T> = {
   data: T;
 };
 
-function normalizeMediaUrl(url: string | undefined) {
+export function normalizeMediaUrl(url: string | undefined) {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
@@ -312,6 +312,22 @@ export async function getEvents(token: string): Promise<EventItem[]> {
   });
   const data = await parseResponse<any[]>(response);
   return data.map(mapEvent);
+}
+
+export async function uploadEventImage(
+  token: string,
+  file: File,
+): Promise<{ ok: boolean; imageUrl: string; filename: string }> {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await safeFetch(`${API_BASE_URL}/api/admin/events/upload-image`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  return parseResponse<{ ok: boolean; imageUrl: string; filename: string }>(response);
 }
 
 export async function createEvent(token: string, event: Omit<EventItem, 'id'>): Promise<EventItem> {
