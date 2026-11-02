@@ -164,6 +164,12 @@ function resolveDir(value, fallbackPath) {
   return path.isAbsolute(value) ? value : path.resolve(process.cwd(), value);
 }
 
+if (!isProduction) {
+  app.get('/', (_req, res) => {
+    res.redirect('http://localhost:5173');
+  });
+}
+
 if (isProduction) {
   const publicDist = resolveDir(process.env.PUBLIC_DIST_PATH, path.resolve(__dirname, '../dist'));
   const adminDist = resolveDir(process.env.ADMIN_DIST_PATH, path.resolve(__dirname, '../../admin/dist'));

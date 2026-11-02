@@ -42,3 +42,4 @@ export function isComingEvent(event: { date?: string; status?: string }): boolea
   if (event.status === 'Upcoming') return true;
   return !isPastEvent(event);
 }
+
