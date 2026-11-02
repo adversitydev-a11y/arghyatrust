@@ -1,10 +1,10 @@
 function resolveApiBaseUrl() {
+  if (import.meta.env.DEV) {
+    return 'http://localhost:5000';
+  }
   const raw = String(import.meta.env.VITE_API_BASE_URL || '').trim();
   if (raw && (raw.startsWith('http://') || raw.startsWith('https://'))) {
     return raw.replace(/\/$/, '');
-  }
-  if (import.meta.env.DEV) {
-    return 'http://localhost:5000';
   }
   return '';
 }

@@ -103,7 +103,7 @@ export default function App() {
   const fetchAllData = async (token: string) => {
     setIsLoading(true);
     try {
-      const [summaryData, contactsData, volunteersData, newsletterData, eventsData, galleryData, blogData] = await Promise.all([
+      const results = await Promise.allSettled([
         getSummary(token),
         getContacts(token),
         getVolunteers(token),
@@ -113,24 +113,32 @@ export default function App() {
         getBlogSubmissions(token),
       ]);
 
-      setSummary(summaryData);
-      setContacts(contactsData);
-      setVolunteers(volunteersData);
-      setNewsletters(newsletterData);
-      setEvents(eventsData);
-      setGalleryImages(galleryData);
-      setBlogSubmissions(blogData);
+      const [summaryRes, contactsRes, volunteersRes, newsletterRes, eventsRes, galleryRes, blogRes] = results;
+
+      if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
+      if (contactsRes.status === 'fulfilled') setContacts(contactsRes.value);
+      if (volunteersRes.status === 'fulfilled') setVolunteers(volunteersRes.value);
+      if (newsletterRes.status === 'fulfilled') setNewsletters(newsletterRes.value);
+      if (eventsRes.status === 'fulfilled') setEvents(eventsRes.value);
+      if (galleryRes.status === 'fulfilled') setGalleryImages(galleryRes.value);
+      if (blogRes.status === 'fulfilled') setBlogSubmissions(blogRes.value);
+
+      // Check if any error indicates invalid/expired token
+      const rejected = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+      if (rejected) {
+        const error = rejected.reason;
+        const message = error instanceof Error ? error.message : String(error || 'Data loading warning');
+        if (
+          message.toLowerCase().includes('unauthorized') ||
+          message.toLowerCase().includes('invalid or expired token')
+        ) {
+          toast.error('Session expired. Please log in again.');
+          handleLogout();
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load admin data';
       toast.error(message);
-      const status = typeof error === 'object' && error && 'status' in error ? Number((error as any).status) : 0;
-      if (
-        status === 401 ||
-        message.toLowerCase().includes('unauthorized') ||
-        message.toLowerCase().includes('invalid or expired token')
-      ) {
-        handleLogout();
-      }
     } finally {
       setIsLoading(false);
     }

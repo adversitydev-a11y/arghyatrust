@@ -1,5 +1,5 @@
 import { type FormEvent, useMemo, useState } from 'react';
-import { Plus, Edit, Trash2, Calendar, Search, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Search, Eye, EyeOff, Star } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
@@ -18,6 +18,11 @@ import {
   SelectValue,
 } from '../ui/select';
 import type { EventItem } from '../../lib/types';
+import {
+  isPastEvent,
+  isComingEvent,
+  type EventFilterType,
+} from '../../lib/eventClassification';
 
 type Event = EventItem;
 
@@ -37,6 +42,7 @@ export function EventsManagementPage({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<EventFilterType>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [formData, setFormData] = useState({
@@ -128,16 +134,34 @@ export function EventsManagementPage({
     setIsModalOpen(false);
   };
 
-  const filteredEvents = useMemo(
-    () =>
-      events.filter(
-        (event) =>
-          event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          event.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          event.status.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    [events, searchTerm],
-  );
+  const filterCounts = useMemo(() => {
+    return {
+      all: events.length,
+      featured: events.filter((e) => Boolean(e.featured)).length,
+      coming: events.filter(isComingEvent).length,
+      past: events.filter(isPastEvent).length,
+    };
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    return events.filter((event) => {
+      // 1. Segmented Filter logic
+      if (activeFilter === 'featured' && !event.featured) return false;
+      if (activeFilter === 'coming' && !isComingEvent(event)) return false;
+      if (activeFilter === 'past' && !isPastEvent(event)) return false;
+
+      // 2. Search query logic
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const matchTitle = event.title?.toLowerCase().includes(q);
+        const matchCat = event.category?.toLowerCase().includes(q);
+        const matchStatus = event.status?.toLowerCase().includes(q);
+        const matchLoc = event.location?.toLowerCase().includes(q);
+        return matchTitle || matchCat || matchStatus || matchLoc;
+      }
+      return true;
+    });
+  }, [events, searchTerm, activeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEvents.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -167,6 +191,42 @@ export function EventsManagementPage({
         </Button>
       </div>
 
+      {/* Segmented Filter Navigation Bar */}
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 scrollbar-none">
+        {[
+          { id: 'all', label: 'All', count: filterCounts.all },
+          { id: 'featured', label: 'Featured', count: filterCounts.featured },
+          { id: 'coming', label: 'Coming', count: filterCounts.coming },
+          { id: 'past', label: 'Past', count: filterCounts.past },
+        ].map((tab) => {
+          const isSelected = activeFilter === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setActiveFilter(tab.id as EventFilterType);
+                setCurrentPage(1);
+              }}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                isSelected
+                  ? 'bg-[#4CAF50] text-white shadow-xs'
+                  : 'bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                  isSelected ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -194,7 +254,16 @@ export function EventsManagementPage({
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{event.title}</td>
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                  <div className="flex items-center gap-2">
+                    <span>{event.title}</span>
+                    {event.featured && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-red-100 text-red-700">
+                        <Star className="w-3 h-3 fill-red-500 text-red-500" /> Featured
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-600">{event.date}</td>
                 <td className="px-6 py-4 text-sm text-gray-600">{event.category}</td>
                 <td className="px-6 py-4">

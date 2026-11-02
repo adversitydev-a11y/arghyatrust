@@ -241,16 +241,21 @@ async function connectMongoWithRetry() {
   while (!dbReady) {
     try {
       await connectMongo();
-      await seedDefaults();
-      await ensureDefaultAdmin();
       dbReady = true;
       dbLastError = null;
-      console.log('MongoDB connected and default content/admin seeded.');
+      console.log('MongoDB connected successfully.');
+      try {
+        await seedDefaults();
+        await ensureDefaultAdmin();
+        console.log('Default content & admin verified.');
+      } catch (seedErr) {
+        console.warn('Seeding note (non-fatal):', seedErr?.message || seedErr);
+      }
       return;
     } catch (err) {
       dbReady = false;
       dbLastError = err;
-      console.error('MongoDB connection failed. Retrying in 15 seconds...');
+      console.error('MongoDB connection failed. Retrying in 15 seconds...', err?.message || err);
       await wait(15000);
     }
   }
