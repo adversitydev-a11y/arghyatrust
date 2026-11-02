@@ -32,8 +32,11 @@ export async function ensureDefaultAdmin() {
     existingAdmin.email = email;
     existingAdmin.username = username;
     existingAdmin.name = name;
-    existingAdmin.password = password; // mongoose pre-save hook will hash it
-    await existingAdmin.save();
+    const isMatching = await existingAdmin.comparePassword(password);
+    if (!isMatching) {
+      existingAdmin.password = password;
+      await existingAdmin.save();
+    }
     console.log(`[Admin] Admin credentials verified & synced for ${email} (${username})`);
     return;
   }
